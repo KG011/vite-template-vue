@@ -36,7 +36,8 @@ export default [
     },
     languageOptions: {
       globals: {
-        console: 'readonly'
+        console: 'readonly',
+        process: 'readonly'
       }
     }
   },
