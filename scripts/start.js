@@ -2,16 +2,17 @@
  * @Author: lichenghao 1660831196@qq.com
  * @Date: 2025-11-13 16:42:50
  * @LastEditors: lichenghao 1660831196@qq.com
- * @LastEditTime: 2025-11-13 17:20:25
+ * @LastEditTime: 2025-11-13 17:37:27
  * @FilePath: \vite-template-vue\scripts\start.js
  * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
  */
 import inquirer from 'inquirer'
-import { readFileSync } from 'fs'
+import { readFileSync, createWriteStream } from 'fs'
 import { fileURLToPath } from 'url'
 import { dirname, join } from 'path'
 import spawn from 'cross-spawn'
 import { loadEnv } from 'vite'
+import archiver from 'archiver'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
@@ -60,6 +61,26 @@ const actions = {
     description: '预览生产构建',
     script: 'preview'
   }
+}
+
+// 压缩目录为ZIP文件
+async function zipDirectory(sourceDir, outPath) {
+  const archive = archiver('zip', { zlib: { level: 9 } })
+  const output = createWriteStream(outPath)
+
+  return new Promise((resolve, reject) => {
+    output.on('close', () => {
+      console.log(
+        `\n📦 压缩完成！ZIP文件大小: ${(archive.pointer() / 1024 / 1024).toFixed(2)} MB`
+      )
+      resolve()
+    })
+
+    archive.on('error', err => reject(err))
+    archive.pipe(output)
+    archive.directory(sourceDir, false)
+    archive.finalize()
+  })
 }
 
 async function selectEnvironment() {
@@ -122,17 +143,28 @@ function executeCommand(action, environment) {
     shell: true
   })
 
-  child.on('close', code => {
+  child.on('close', async code => {
     if (action === 'build') {
       if (code === 0) {
-        // 读取环境变量获取应用标题
-        const env = loadEnv(environment, projectRoot, '')
-        const appTitle = env.VITE_APP_TITLE || 'app'
+        // 读取环境变量获取应用标题，优先使用基础配置中的 VITE_APP_TITLE
+        const configDir = join(projectRoot, 'config')
+        const env = loadEnv(environment, configDir, '')
+        const baseEnv = loadEnv('', configDir, '')
+        const appTitle = env.VITE_APP_TITLE || baseEnv.VITE_APP_TITLE || 'app'
+        const buildDir = join(projectRoot, `dist/${appTitle}-${environment}`)
+        const zipPath = join(projectRoot, `dist/${appTitle}-${environment}.zip`)
 
         console.log('\n✅ 构建完成！')
-        console.log(
-          `构建文件位于: ${join(projectRoot, `dist/${appTitle}-${environment}`)}`
-        )
+        console.log(`构建文件位于: ${buildDir}`)
+
+        // 压缩构建结果
+        console.log('\n📦 正在压缩构建结果...')
+        try {
+          await zipDirectory(buildDir, zipPath)
+          console.log(`压缩文件已保存至: ${zipPath}`)
+        } catch (error) {
+          console.error('\n❌ 压缩失败:', error.message)
+        }
       } else {
         console.log(`\n❌ 构建失败，退出代码: ${code}`)
       }

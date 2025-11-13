@@ -1,12 +1,20 @@
 import { defineConfig, loadEnv } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import { fileURLToPath, URL } from 'node:url'
+import { resolve } from 'node:path'
 
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
+  // 获取配置目录路径
+  const configDir = resolve(process.cwd(), 'config')
+
   // 根据当前工作目录中的 `mode` 加载 .env 文件
   // 设置第三个参数为 '' 来加载所有环境变量，而不管是否有 `VITE_` 前缀。
-  const env = loadEnv(mode, process.cwd(), '')
+  const env = loadEnv(mode, configDir, '')
+
+  // 加载基础环境配置，确保优先使用基础配置中的 VITE_APP_TITLE
+  const baseEnv = loadEnv('', configDir, '')
+  const appTitle = env.VITE_APP_TITLE || baseEnv.VITE_APP_TITLE || 'app'
 
   return {
     plugins: [vue()],
@@ -31,7 +39,7 @@ export default defineConfig(({ mode }) => {
     // 构建配置
     build: {
       // 根据环境变量和APP标题设置输出目录
-      outDir: `dist/${env.VITE_APP_TITLE || 'app'}-${mode}`,
+      outDir: `dist/${appTitle}-${mode}`,
       // 静态资源存放路径
       assetsDir: 'static',
       // rollup底层打包配置
