@@ -30,6 +30,8 @@ export default defineConfig(({ mode }) => {
     },
     // 构建配置
     build: {
+      // 根据环境变量和APP标题设置输出目录
+      outDir: `dist/${env.VITE_APP_TITLE || 'app'}-${mode}`,
       // 静态资源存放路径
       assetsDir: 'static',
       // rollup底层打包配置
